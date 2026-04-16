@@ -157,6 +157,30 @@ def create_dataset(
             ds = ImageFolder(root, **kwargs)
         else:
             assert False, f"Unknown torchvision dataset {name}"
+    elif name.startswith('parquet/'):
+        if is_training:
+            ds = IterableImageDataset(
+                root,
+                reader=name,
+                split=split,
+                class_map=class_map,
+                is_training=is_training,
+                batch_size=batch_size,
+                num_samples=num_samples,
+                repeats=repeats,
+                seed=seed,
+                input_img_mode=input_img_mode,
+                **kwargs,
+            )
+        else:
+            ds = ImageDataset(
+                root,
+                reader=name,
+                split=split,
+                class_map=class_map,
+                input_img_mode=input_img_mode,
+                **kwargs,
+            )
     elif name.startswith('hfds/'):
         # NOTE right now, HF datasets default arrow format is a random-access Dataset,
         # There will be a IterableDataset variant too, TBD

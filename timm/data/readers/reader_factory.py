@@ -24,7 +24,10 @@ def create_reader(
 
     # FIXME improve the selection right now just tfds prefix or fallback path, will need options to
     # explicitly select other options shortly
-    if prefix == 'hfds':
+    if prefix == 'parquet':
+        from .reader_parquet import ReaderParquet  # defer pyarrow import
+        reader = ReaderParquet(root=root, split=split, **kwargs)
+    elif prefix == 'hfds':
         from .reader_hfds import ReaderHfds  # defer Hf datasets import
         reader = ReaderHfds(name=name, root=root, split=split, additional_features=additional_features, **kwargs)
     elif prefix == 'hfids':

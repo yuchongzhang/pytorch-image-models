@@ -11,6 +11,7 @@ from .csatv2 import *
 from .cspnet import *
 from .davit import *
 from .deit import *
+from .deit_mixed import *
 from .densenet import *
 from .dla import *
 from .dpn import *
