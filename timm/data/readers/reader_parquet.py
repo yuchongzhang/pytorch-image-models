@@ -35,6 +35,7 @@ from .shared_count import SharedCount
 _logger = logging.getLogger(__name__)
 
 _MAX_OPEN_FILES = int(os.environ.get('TIMM_PARQUET_MAX_OPEN_FILES', 4))
+_USE_ROW_GROUP_THREADS = bool(int(os.environ.get('TIMM_PARQUET_USE_ROW_GROUP_THREADS', 0)))
 
 
 class _RowGroupInfo(NamedTuple):
@@ -185,10 +186,13 @@ class ReaderParquet(Reader):
 
     def _load_row_group(self, row_group: _RowGroupInfo):
         parquet_file = self._get_parquet_file(row_group.file_idx)
+        # PyTorch already parallelizes parquet reads across DataLoader workers.
+        # Keep Arrow's internal thread pool disabled by default to avoid nested
+        # worker x Arrow oversubscription and worker stalls.
         table = parquet_file.read_row_group(
             row_group.row_group_idx,
             columns=[self.image_key, self.label_key],
-            use_threads=True,
+            use_threads=_USE_ROW_GROUP_THREADS,
         )
         return table.column(self.image_key), table.column(self.label_key)
 
@@ -261,17 +265,17 @@ class ReaderParquet(Reader):
     def __iter__(self):
         self._lazy_init_worker()
 
-        file_indices = list(range(len(self.file_paths)))
+        row_group_indices = list(range(len(self.row_groups)))
         if self.is_training:
             shuffle_rng = random.Random(self.common_seed + self.epoch.value)
-            shuffle_rng.shuffle(file_indices)
+            shuffle_rng.shuffle(row_group_indices)
 
         if self.global_num_workers > 1:
-            assigned_files = file_indices[self.global_worker_id::self.global_num_workers]
-            if not assigned_files:
-                assigned_files = [file_indices[self.global_worker_id % len(file_indices)]]
+            assigned_row_groups = row_group_indices[self.global_worker_id::self.global_num_workers]
+            if not assigned_row_groups:
+                assigned_row_groups = [row_group_indices[self.global_worker_id % len(row_group_indices)]]
         else:
-            assigned_files = file_indices
+            assigned_row_groups = row_group_indices
 
         target_sample_count = self._num_samples_per_worker()
         yielded = 0
@@ -280,36 +284,26 @@ class ReaderParquet(Reader):
         while True:
             cycle_seed = self.common_seed + self.epoch.value + cycle * 104729 + self.global_worker_id
             cycle_rng = random.Random(cycle_seed)
-            cycle_files = list(assigned_files)
+            cycle_row_groups = list(assigned_row_groups)
             if self.is_training:
-                cycle_rng.shuffle(cycle_files)
+                cycle_rng.shuffle(cycle_row_groups)
 
-            for file_idx in cycle_files:
-                row_group_order = list(range(self.file_num_row_groups[file_idx]))
+            for row_group_idx in cycle_row_groups:
+                row_group = self.row_groups[row_group_idx]
+                images, labels = self._load_row_group(row_group)
+                row_order = list(range(len(images)))
                 if self.is_training:
-                    cycle_rng.shuffle(row_group_order)
+                    cycle_rng.shuffle(row_order)
 
-                for row_group_idx in row_group_order:
-                    row_group = _RowGroupInfo(
-                        file_idx=file_idx,
-                        row_group_idx=row_group_idx,
-                        start=0,
-                        num_rows=0,
-                    )
-                    images, labels = self._load_row_group(row_group)
-                    row_order = list(range(len(images)))
-                    if self.is_training:
-                        cycle_rng.shuffle(row_order)
-
-                    for row_idx in row_order:
-                        if yielded >= target_sample_count:
-                            return
-                        image = self._decode_image(images[row_idx].as_py())
-                        label = int(labels[row_idx].as_py())
-                        if self.remap_class:
-                            label = self.class_to_idx[label]
-                        yield image, label
-                        yielded += 1
+                for row_idx in row_order:
+                    if yielded >= target_sample_count:
+                        return
+                    image = self._decode_image(images[row_idx].as_py())
+                    label = int(labels[row_idx].as_py())
+                    if self.remap_class:
+                        label = self.class_to_idx[label]
+                    yield image, label
+                    yielded += 1
 
             if not self.is_training:
                 return

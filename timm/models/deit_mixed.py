@@ -165,39 +165,39 @@ def deit3_small_1L_patch16_224(pretrained=False, **kwargs) -> MixedVisionTransfo
 
 ##################### DeiT Base models ####################
 @register_model
-def deit3_base_1L_patch16_224(pretrained=False, **kwargs) -> MixedVisionTransformer:
-    model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-1, no_embed_class=True, init_values=1e-6, qk_norm=True)
-    model = _create_deit('deit3_base_1L_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+def deit3_base_1L_patch16_192(pretrained=False, **kwargs) -> MixedVisionTransformer:
+    model_args = dict(img_size=192, patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-1, no_embed_class=True, init_values=1e-6, qk_norm=True)
+    model = _create_deit('deit3_base_1L_patch16_192', pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 @register_model
-def deit3_base_3L_patch16_224(pretrained=False, **kwargs) -> MixedVisionTransformer:
-    model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-3, no_embed_class=True, init_values=1e-6, qk_norm=True)
-    model = _create_deit('deit3_base_3L_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+def deit3_base_3L_patch16_192(pretrained=False, **kwargs) -> MixedVisionTransformer:
+    model_args = dict(img_size=192, patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-3, no_embed_class=True, init_values=1e-6, qk_norm=True)
+    model = _create_deit('deit3_base_3L_patch16_192', pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 @register_model
-def deit3_base_6L_patch16_224(pretrained=False, **kwargs) -> MixedVisionTransformer:
-    model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-6, no_embed_class=True, init_values=1e-6, qk_norm=True)
-    model = _create_deit('deit3_base_6L_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+def deit3_base_6L_patch16_192(pretrained=False, **kwargs) -> MixedVisionTransformer:
+    model_args = dict(img_size=192, patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-6, no_embed_class=True, init_values=1e-6, qk_norm=True)
+    model = _create_deit('deit3_base_6L_patch16_192', pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 @register_model
-def deit3_base_9L_patch16_224(pretrained=False, **kwargs) -> MixedVisionTransformer:
-    model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-9, no_embed_class=True, init_values=1e-6, qk_norm=True)
-    model = _create_deit('deit3_base_9L_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+def deit3_base_9L_patch16_192(pretrained=False, **kwargs) -> MixedVisionTransformer:
+    model_args = dict(img_size=192, patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-9, no_embed_class=True, init_values=1e-6, qk_norm=True)
+    model = _create_deit('deit3_base_9L_patch16_192', pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 @register_model
-def deit3_base_11L_patch16_224(pretrained=False, **kwargs) -> MixedVisionTransformer:
-    model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-11, no_embed_class=True, init_values=1e-6, qk_norm=True)
-    model = _create_deit('deit3_base_11L_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+def deit3_base_11L_patch16_192(pretrained=False, **kwargs) -> MixedVisionTransformer:
+    model_args = dict(img_size=192, patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-11, no_embed_class=True, init_values=1e-6, qk_norm=True)
+    model = _create_deit('deit3_base_11L_patch16_192', pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 @register_model
-def deit3_base_12L_patch16_224(pretrained=False, **kwargs) -> MixedVisionTransformer:
-    model_args = dict(patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-12, no_embed_class=True, init_values=1e-6, qk_norm=True)
-    model = _create_deit('deit3_base_12L_patch16_224', pretrained=pretrained, **dict(model_args, **kwargs))
+def deit3_base_12L_patch16_192(pretrained=False, **kwargs) -> MixedVisionTransformer:
+    model_args = dict(img_size=192, patch_size=16, embed_dim=768, depth=12, num_heads=12, num_vanilla_heads=12-12, no_embed_class=True, init_values=1e-6, qk_norm=True)
+    model = _create_deit('deit3_base_12L_patch16_192', pretrained=pretrained, **dict(model_args, **kwargs))
     return model
 
 

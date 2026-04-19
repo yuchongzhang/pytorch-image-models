@@ -278,6 +278,22 @@ def deit_base_patch16_224(pretrained=False, **kwargs) -> VisionTransformer:
 
 
 @register_model
+def deit3_base_qk_patch16_192(pretrained=False, **kwargs) -> VisionTransformer:
+    model_args = dict(
+        img_size=192,
+        patch_size=16,
+        embed_dim=768,
+        depth=12,
+        num_heads=12,
+        no_embed_class=True,
+        init_values=1e-6,
+        qk_norm=True,
+    )
+    model = _create_deit('deit3_base_qk_patch16_192', pretrained=pretrained, **dict(model_args, **kwargs))
+    return model
+
+
+@register_model
 def deit_base_patch16_384(pretrained=False, **kwargs) -> VisionTransformer:
     """ DeiT base model @ 384x384 from paper (https://arxiv.org/abs/2012.12877).
     ImageNet-1k weights from https://github.com/facebookresearch/deit.
