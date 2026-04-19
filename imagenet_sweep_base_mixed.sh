@@ -302,6 +302,15 @@ source ${VENV_PATH}
 export OMP_NUM_THREADS=8
 export NCCL_DEBUG=WARN
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
+# Widen NCCL watchdog so a transient single-rank lustre read stall doesn't trip
+# the default 600s ALLREDUCE timeout on peers that finished their I/O.
+export TORCH_NCCL_TIMEOUT_SECONDS=600
+export TORCH_NCCL_HEARTBEAT_TIMEOUT_SEC=600
+# Parquet reader tuning (defaults in timm/data/readers/reader_parquet.py match these,
+# but we set them explicitly so shell-level overrides can't silently change behavior).
+export TIMM_PARQUET_MAX_OPEN_FILES=4
+export TIMM_PARQUET_USE_MEMORY_MAP=0
+export TIMM_PARQUET_USE_ROW_GROUP_THREADS=0
 export WANDB_MODE=offline
 
 # Change to project directory

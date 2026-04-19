@@ -1,4 +1,5 @@
 import math
+import random
 import torch
 from torch.utils.data import Sampler
 import torch.distributed as dist
@@ -130,6 +131,110 @@ class RepeatAugSampler(Sampler):
 
     def __len__(self):
         return self.num_selected_samples
+
+    def set_epoch(self, epoch):
+        self.epoch = epoch
+
+
+def _unwrap_dataset_reader(dataset):
+    current = dataset
+    visited = set()
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+        reader = getattr(current, 'reader', None)
+        if reader is not None:
+            return reader
+        current = getattr(current, 'dataset', None)
+    return None
+
+
+class ParquetDistributedSampler(Sampler):
+    """Distributed sampler that preserves parquet row-group locality."""
+
+    def __init__(
+            self,
+            dataset,
+            batch_size,
+            num_replicas=None,
+            rank=None,
+    ):
+        if num_replicas is None:
+            if not dist.is_available():
+                raise RuntimeError("Requires distributed package to be available")
+            num_replicas = dist.get_world_size()
+        if rank is None:
+            if not dist.is_available():
+                raise RuntimeError("Requires distributed package to be available")
+            rank = dist.get_rank()
+        if batch_size <= 0:
+            raise ValueError('batch_size must be positive for ParquetDistributedSampler')
+
+        self.dataset = dataset
+        self.reader = _unwrap_dataset_reader(dataset)
+        if self.reader is None or not getattr(self.reader, 'use_parquet_distributed_sampler', False):
+            raise ValueError('ParquetDistributedSampler requires a parquet-backed dataset')
+
+        self.batch_size = batch_size
+        self.num_replicas = num_replicas
+        self.rank = rank
+        self.epoch = 0
+        self.num_samples = self._compute_num_samples()
+        self.total_size = self.num_samples * self.num_replicas
+
+    def _repeat_factor(self):
+        return float(max(1, getattr(self.reader, 'repeats', 0)))
+
+    def _repeat_indices(self, indices):
+        repeats = self._repeat_factor()
+        if repeats <= 1:
+            return indices
+        if repeats.is_integer():
+            return indices * int(repeats)
+        repeat_size = math.ceil(len(indices) * repeats)
+        return [indices[int(i // repeats)] for i in range(repeat_size)]
+
+    def _build_epoch_indices(self):
+        rng = random.Random(getattr(self.reader, 'seed', 0) + self.epoch)
+        row_group_order = list(range(len(self.reader.row_groups)))
+        rng.shuffle(row_group_order)
+
+        indices = []
+        for row_group_idx in row_group_order:
+            row_group = self.reader.row_groups[row_group_idx]
+            row_group_indices = list(range(row_group.start, row_group.start + row_group.num_rows))
+            rng.shuffle(row_group_indices)
+            indices.extend(row_group_indices)
+        return self._repeat_indices(indices)
+
+    def _compute_num_samples(self):
+        base_length = len(self.dataset)
+        if base_length <= 0:
+            return 0
+
+        repeats = self._repeat_factor()
+        if repeats <= 1:
+            repeated_length = base_length
+        elif repeats.is_integer():
+            repeated_length = base_length * int(repeats)
+        else:
+            repeated_length = math.ceil(base_length * repeats)
+
+        block = self.num_replicas * self.batch_size
+        usable_length = repeated_length - (repeated_length % block)
+        return usable_length // self.num_replicas
+
+    def __iter__(self):
+        if self.num_samples <= 0:
+            return iter([])
+
+        indices = self._build_epoch_indices()
+        indices = indices[:self.total_size]
+        start = self.rank * self.num_samples
+        end = start + self.num_samples
+        return iter(indices[start:end])
+
+    def __len__(self):
+        return self.num_samples
 
     def set_epoch(self, epoch):
         self.epoch = epoch

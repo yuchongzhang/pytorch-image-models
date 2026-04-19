@@ -18,7 +18,7 @@ import numpy as np
 
 from .constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from .dataset import IterableImageDataset, ImageDataset
-from .distributed_sampler import OrderedDistributedSampler, RepeatAugSampler
+from .distributed_sampler import OrderedDistributedSampler, ParquetDistributedSampler, RepeatAugSampler
 from .random_erasing import RandomErasing
 from .mixup import FastCollateMixup
 from .transforms_factory import create_transform
@@ -197,6 +197,18 @@ def _worker_init(worker_id, worker_seeding='all'):
             np.random.seed(worker_info.seed % (2 ** 32 - 1))
 
 
+def _dataset_reader(dataset):
+    current = dataset
+    visited = set()
+    while current is not None and id(current) not in visited:
+        visited.add(id(current))
+        reader = getattr(current, 'reader', None)
+        if reader is not None:
+            return reader
+        current = getattr(current, 'dataset', None)
+    return None
+
+
 def create_loader(
         dataset: Union[ImageDataset, IterableImageDataset],
         input_size: Union[int, Tuple[int, int], Tuple[int, int, int]],
@@ -323,10 +335,13 @@ def create_loader(
         dataset.set_loader_cfg(num_workers=num_workers)
 
     sampler = None
+    reader = _dataset_reader(dataset)
     if distributed and not isinstance(dataset, torch.utils.data.IterableDataset):
         if is_training:
             if num_aug_repeats:
                 sampler = RepeatAugSampler(dataset, num_repeats=num_aug_repeats)
+            elif reader is not None and getattr(reader, 'use_parquet_distributed_sampler', False):
+                sampler = ParquetDistributedSampler(dataset, batch_size=batch_size)
             else:
                 sampler = torch.utils.data.distributed.DistributedSampler(dataset)
         else:
