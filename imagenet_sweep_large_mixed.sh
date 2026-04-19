@@ -72,14 +72,14 @@ MODEL_EMA=false
 MODEL_EMA_DECAY=0.99996
 
 # Checkpointing
-CHECKPOINT_HIST=1           # Keep top-3 checkpoints by metric
+CHECKPOINT_HIST=1           # Keep only the best checkpoint plus last.pth.tar
 
 # ========================
 # SLURM CONFIGURATION
 # ========================
 ACCOUNT="aip-papyan"
 PARTITION=""                # Leave empty for default
-TIME="03:00:00"             # 24h wall time (auto-requeue handles longer training)
+TIME="03:00:00"             # 3h wall time (auto-requeue handles longer training)
 CPUS=32                     # CPUs for data loading
 NUM_GPUS=4                  # Number of H100 GPUs per node
 GPU_TYPE="h100:${NUM_GPUS}"
@@ -148,16 +148,20 @@ is_queued() {
 # Returns 0 (true) if the experiment has already completed the requested epochs
 is_finished() {
     local exp_dir="${OUTPUT_BASE}/${1}"
-    local log_file="${exp_dir}/training_log.json"
-    [[ -f "${log_file}" ]] || return 1
+    local summary_file="${exp_dir}/summary.csv"
+    [[ -f "${summary_file}" ]] || return 1
     local completed
     completed=$(python3 -c "
-import json, sys
+import csv
 try:
-    with open('${log_file}') as f:
-        d = json.load(f)
-    entry = d[0] if isinstance(d, list) else d
-    print(entry.get('total_epochs', 0))
+    max_epoch = -1
+    with open('${summary_file}', newline='') as f:
+        for row in csv.DictReader(f):
+            epoch = row.get('epoch')
+            if not epoch:
+                continue
+            max_epoch = max(max_epoch, int(float(epoch)))
+    print(max_epoch + 1)
 except Exception:
     print(0)
 " 2>/dev/null)
